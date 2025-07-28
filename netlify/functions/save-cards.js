@@ -54,6 +54,5 @@ exports.handler = async (event) => {
     };
   }
 };
-Add full CORS-enabled Netlify save function
 
 
