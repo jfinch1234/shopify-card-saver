@@ -2,17 +2,18 @@ const fetch = require('node-fetch');
 
 exports.handler = async (event) => {
   // Handle preflight request
-  if (event.httpMethod === 'OPTIONS') {
-    return {
-      statusCode: 200,
-      headers: {
-        'Access-Control-Allow-Origin': 'https://mindandsoulshop.com',
-        'Access-Control-Allow-Headers': 'Content-Type',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS'
-      },
-      body: 'Preflight OK',
-    };
-  }
+if (event.httpMethod === 'OPTIONS') {
+  return {
+    statusCode: 200,
+    headers: {
+      'Access-Control-Allow-Origin': 'https://mindandsoulshop.com',
+      'Access-Control-Allow-Headers': 'Content-Type, X-Shopify-Storefront-Access-Token',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS'
+    },
+    body: 'Preflight OK',
+  };
+}
+
 
   try {
     const { pageId, cards } = JSON.parse(event.body);
