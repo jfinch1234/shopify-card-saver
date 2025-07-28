@@ -13,8 +13,6 @@ if (event.httpMethod === 'OPTIONS') {
     body: 'Preflight OK',
   };
 }
-
-
   try {
     const { pageId, cards } = JSON.parse(event.body);
 
