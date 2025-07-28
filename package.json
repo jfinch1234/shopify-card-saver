@@ -1,0 +1,9 @@
+{
+  "name": "shopify-card-saver",
+  "version": "1.0.0",
+  "description": "Netlify function to save Shopify cards to metafields",
+  "main": "save-cards.js",
+  "dependencies": {
+    "node-fetch": "^2.6.1"
+  }
+}
