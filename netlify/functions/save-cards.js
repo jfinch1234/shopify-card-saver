@@ -16,7 +16,8 @@ if (event.httpMethod === 'OPTIONS') {
   try {
     const { pageId, cards } = JSON.parse(event.body);
 
-    const res = await fetch('https://mind-and-soul-shop.myshopify.com/admin/api/2023-01/metafields.json', {
+    const res = await fetch("https://peppy-praline-b89957.netlify.app/.netlify/functions/save-cards", {
+  
       method: 'POST',
       headers: {
         'X-Shopify-Access-Token': process.env.ADMIN_API_TOKEN,
