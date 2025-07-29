@@ -36,7 +36,7 @@ exports.handler = async (event) => {
     // ✅ Fix 1: Convert GID to numeric ID
     const numericId = pageId.replace('gid://shopify/Page/', '');
 
-    // 🧠 Fix 2: Check if metafield already exists
+    // 🧠 Fix 2: Check if metafield already exists safely
     const lookupRes = await fetch(`https://mind-and-soul-shop.myshopify.com/admin/api/2023-01/metafields.json?owner_id=${numericId}&owner_resource=page`, {
       method: 'GET',
       headers: {
@@ -46,7 +46,10 @@ exports.handler = async (event) => {
     });
 
     const lookupData = await lookupRes.json();
-    const existing = lookupData.metafields.find(mf =>
+
+    // ✅ Safely check if metafields array exists
+    const metafields = Array.isArray(lookupData.metafields) ? lookupData.metafields : [];
+    const existing = metafields.find(mf =>
       mf.namespace === 'cards' && mf.key === 'innovation'
     );
 
