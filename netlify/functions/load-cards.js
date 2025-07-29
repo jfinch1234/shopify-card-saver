@@ -1,6 +1,10 @@
+const fetch = require('node-fetch');
+
 exports.handler = async (event) => {
+  // Parse pageId from request body
   const { pageId } = JSON.parse(event.body || '{}');
 
+  // Validate input
   if (!pageId) {
     return {
       statusCode: 400,
@@ -11,8 +15,12 @@ exports.handler = async (event) => {
     };
   }
 
+  // ✅ Convert GID to numeric Shopify ID
+  const numericId = pageId.replace('gid://shopify/Page/', '');
+
   try {
-    const response = await fetch(`https://mind-and-soul-shop.myshopify.com/admin/api/2023-01/metafields.json?owner_id=${pageId}&owner_resource=page`, {
+    // Request metafields for this page
+    const response = await fetch(`https://mind-and-soul-shop.myshopify.com/admin/api/2023-01/metafields.json?owner_id=${numericId}&owner_resource=page`, {
       method: 'GET',
       headers: {
         'X-Shopify-Access-Token': process.env.ADMIN_API_TOKEN,
@@ -21,13 +29,17 @@ exports.handler = async (event) => {
     });
 
     const data = await response.json();
+
+    // Find the specific metafield
     const metafield = data.metafields.find(mf =>
       mf.namespace === 'cards' && mf.key === 'innovation'
     );
 
     return {
       statusCode: 200,
-      body: JSON.stringify({ cards: JSON.parse(metafield?.value || '[]') }),
+      body: JSON.stringify({
+        cards: JSON.parse(metafield?.value || '[]')
+      }),
       headers: {
         'Access-Control-Allow-Origin': 'https://mindandsoulshop.com'
       }
