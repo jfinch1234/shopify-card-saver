@@ -33,26 +33,48 @@ exports.handler = async (event) => {
       };
     }
 
-    const res = await fetch('https://mind-and-soul-shop.myshopify.com/admin/api/2023-01/metafields.json', {
-      method: 'POST',
+    // ✅ Fix 1: Convert GID to numeric ID
+    const numericId = pageId.replace('gid://shopify/Page/', '');
+
+    // 🧠 Fix 2: Check if metafield already exists
+    const lookupRes = await fetch(`https://mind-and-soul-shop.myshopify.com/admin/api/2023-01/metafields.json?owner_id=${numericId}&owner_resource=page`, {
+      method: 'GET',
+      headers: {
+        'X-Shopify-Access-Token': process.env.ADMIN_API_TOKEN,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const lookupData = await lookupRes.json();
+    const existing = lookupData.metafields.find(mf =>
+      mf.namespace === 'cards' && mf.key === 'innovation'
+    );
+
+    const url = existing
+      ? `https://mind-and-soul-shop.myshopify.com/admin/api/2023-01/metafields/${existing.id}.json`
+      : `https://mind-and-soul-shop.myshopify.com/admin/api/2023-01/metafields.json`;
+
+    const method = existing ? 'PUT' : 'POST';
+
+    const res = await fetch(url, {
+      method,
       headers: {
         'X-Shopify-Access-Token': process.env.ADMIN_API_TOKEN,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         metafield: {
+          ...(existing ? {} : { owner_id: numericId, owner_resource: 'page' }),
           namespace: 'cards',
           key: 'innovation',
           type: 'json',
           value: JSON.stringify(cards),
-          owner_resource: 'page',
-          owner_id: pageId
         }
       })
     });
 
     const data = await res.json();
-    console.log("✅ Shopify response:", data);
+    console.log("✅ Shopify save response:", data);
 
     return {
       statusCode: 200,
