@@ -50,7 +50,7 @@ exports.handler = async (event) => {
     // ✅ Safely check if metafields array exists
     const metafields = Array.isArray(lookupData.metafields) ? lookupData.metafields : [];
     const existing = metafields.find(mf =>
-      mf.namespace === 'cards' && mf.key === 'innovation'
+      mf.namespace === 'cards' && mf.key === 'innovations'
     );
 
     const url = existing
@@ -69,7 +69,7 @@ exports.handler = async (event) => {
         metafield: {
           ...(existing ? {} : { owner_id: numericId, owner_resource: 'page' }),
           namespace: 'cards',
-          key: 'innovation',
+          key: 'innovations',
           type: 'json',
           value: JSON.stringify(cards),
         }
