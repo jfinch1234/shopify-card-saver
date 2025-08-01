@@ -52,7 +52,7 @@ exports.handler = async (event) => {
 
     const data = await response.json();
     const metafield = Array.isArray(data.metafields)
-      ? data.metafields.find(mf => mf.namespace === 'cards' && mf.key === 'innovation')
+      ? data.metafields.find(mf => mf.namespace === 'cards' && mf.key === 'innovations')
       : null;
 
     return {
