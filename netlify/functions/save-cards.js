@@ -1,101 +1,100 @@
 const fetch = require('node-fetch');
 
 exports.handler = async (event) => {
-  console.log("🔔 Function called:", event.httpMethod);
+  const { pageId, cards } = JSON.parse(event.body || '{}');
 
-  // Handle CORS preflight
-  if (event.httpMethod === 'OPTIONS') {
+  if (!pageId || !Array.isArray(cards)) {
     return {
-      statusCode: 200,
-      headers: {
-        'Access-Control-Allow-Origin': 'https://mindandsoulshop.com',
-        'Access-Control-Allow-Headers': 'Content-Type, X-Shopify-Storefront-Access-Token',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS'
-      },
-      body: 'Preflight OK',
+      statusCode: 400,
+      body: JSON.stringify({ error: "Missing or invalid 'pageId' or 'cards'" })
     };
   }
 
-  try {
-    const body = JSON.parse(event.body || '{}');
-    const { pageId, cards } = body;
+  const accessToken = process.env.ADMIN_API_TOKEN;
 
-    console.log("📦 Received pageId:", pageId);
-    console.log("🧾 Cards:", cards);
+  const numericId = pageId.split('/').pop();
 
-    if (!pageId || !Array.isArray(cards)) {
-      return {
-        statusCode: 400,
-        headers: {
-          'Access-Control-Allow-Origin': 'https://mindandsoulshop.com'
-        },
-        body: JSON.stringify({ error: 'Missing pageId or cards array' })
-      };
-    }
-
-    // ✅ Fix 1: Convert GID to numeric ID
-    const numericId = pageId.replace('gid://shopify/Page/', '');
-
-    // 🧠 Fix 2: Check if metafield already exists safely
-    const lookupRes = await fetch(`https://mind-and-soul-shop.myshopify.com/admin/api/2023-01/metafields.json?owner_id=${numericId}&owner_resource=page`, {
-      method: 'GET',
-      headers: {
-        'X-Shopify-Access-Token': process.env.ADMIN_API_TOKEN,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    const lookupData = await lookupRes.json();
-
-    // ✅ Safely check if metafields array exists
-    const metafields = Array.isArray(lookupData.metafields) ? lookupData.metafields : [];
-    const existing = metafields.find(mf =>
-      mf.namespace === 'cards' && mf.key === 'innovations'
-    );
-
-    const url = existing
-      ? `https://mind-and-soul-shop.myshopify.com/admin/api/2023-01/metafields/${existing.id}.json`
-      : `https://mind-and-soul-shop.myshopify.com/admin/api/2023-01/metafields.json`;
-
-    const method = existing ? 'PUT' : 'POST';
-
-    const res = await fetch(url, {
-      method,
-      headers: {
-        'X-Shopify-Access-Token': process.env.ADMIN_API_TOKEN,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        metafield: {
-          ...(existing ? {} : { owner_id: numericId, owner_resource: 'page' }),
-          namespace: 'cards',
-          key: 'innovations',
-          type: 'json',
-          value: JSON.stringify(cards),
+  const metafieldQuery = `
+    query {
+      page(id: "${pageId}") {
+        metafields(first: 10, namespace: "cards") {
+          edges {
+            node {
+              id
+              key
+              namespace
+              value
+              type
+            }
+          }
         }
-      })
-    });
+      }
+    }
+  `;
 
-    const data = await res.json();
-    console.log("✅ Shopify save response:", data);
+  const response = await fetch('https://mind-and-soul-shop.myshopify.com/admin/api/2023-01/graphql.json', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Shopify-Access-Token': accessToken
+    },
+    body: JSON.stringify({ query: metafieldQuery })
+  });
 
-    return {
-      statusCode: 200,
-      headers: {
-        'Access-Control-Allow-Origin': 'https://mindandsoulshop.com'
-      },
-      body: JSON.stringify(data)
-    };
+  const result = await response.json();
+  const edges = result?.data?.page?.metafields?.edges || [];
 
-  } catch (error) {
-    console.error("❌ Function error:", error);
+  const existing = edges.find(edge => edge.node.key === 'innovations');
+  const metafieldId = existing?.node?.id;
 
+  const mutation = `
+    mutation metafieldUpsert($input: MetafieldInput!) {
+      metafieldUpsert(input: $input) {
+        metafield {
+          id
+          key
+          value
+        }
+        userErrors {
+          field
+          message
+        }
+      }
+    }
+  `;
+
+  const variables = {
+    input: {
+      ...(metafieldId ? { id: metafieldId } : { ownerId: pageId }),
+      namespace: "cards",
+      key: "innovations",
+      type: "json",
+      value: JSON.stringify(cards)
+    }
+  };
+
+  const saveResponse = await fetch('https://mind-and-soul-shop.myshopify.com/admin/api/2023-01/graphql.json', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Shopify-Access-Token': accessToken
+    },
+    body: JSON.stringify({ query: mutation, variables })
+  });
+
+  const saveResult = await saveResponse.json();
+
+  if (saveResult.errors || saveResult.data?.metafieldUpsert?.userErrors?.length) {
+    console.error("Metafield save failed:", saveResult);
     return {
       statusCode: 500,
-      headers: {
-        'Access-Control-Allow-Origin': 'https://mindandsoulshop.com'
-      },
-      body: JSON.stringify({ error: error.message })
+      body: JSON.stringify({ error: "Metafield update failed", details: saveResult })
     };
   }
+
+  return {
+    statusCode: 200,
+    body: JSON.stringify({ message: "Saved successfully" })
+  };
 };
+
